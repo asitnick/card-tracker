@@ -1,0 +1,12 @@
+{
+  "name": "card-tracker",
+  "version": "1.0.0",
+  "description": "Price polling script for SWU card tracker",
+  "main": "fetch-prices.js",
+  "scripts": {
+    "fetch": "node fetch-prices.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
