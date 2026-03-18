@@ -1,0 +1,32 @@
+name: Fetch Card Prices
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'   # every 2 hours
+  workflow_dispatch:         # allows manual trigger from GitHub Actions tab
+
+jobs:
+  fetch-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: card-tracker
+
+      - name: Fetch prices and store
+        run: node fetch-prices.js
+        working-directory: card-tracker
+        env:
+          JUSTTCG_API_KEY:    ${{ secrets.JUSTTCG_API_KEY }}
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
+          DISCORD_WEBHOOK:    ${{ secrets.DISCORD_WEBHOOK }}  # optional
