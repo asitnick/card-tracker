@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Card Price Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:         #0f1117;
+    --surface:    #181c26;
+    --surface2:   #1f2435;
+    --border:     rgba(255,255,255,0.07);
+    --border-mid: rgba(255,255,255,0.13);
+    --text:       #e8eaf0;
+    --text-muted: #7a7f94;
+    --text-dim:   #4a4f62;
+    --accent:     #ffe84d;
+    --accent-dim: rgba(255,232,77,0.12);
+    --green:      #4cdb8f;
+    --green-dim:  rgba(76,219,143,0.12);
+    --red:        #ff6b6b;
+    --red-dim:    rgba(255,107,107,0.12);
+    --blue:       #60a5fa;
+    --blue-dim:   rgba(96,165,250,0.12);
+    --radius:     10px;
+    --radius-lg:  14px;
+    --mono:       'DM Mono', monospace;
+    --sans:       'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .header-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+  .add-btn {
+    flex-shrink: 0;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .add-btn:hover { background: rgba(255,232,77,0.2); }
+
+  /* Summary stats */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .stat-value {
+    font-size: 26px;
+    font-weight: 500;
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .stat-value.alert { color: var(--red); }
+
+  /* Card list */
+  .cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .card-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    transition: border-color 0.15s;
+  }
+  .card-row:hover { border-color: var(--border-mid); }
+  .card-row.triggered { border-color: rgba(255,107,107,0.3); }
+
+  .card-info { min-width: 0; }
+  .card-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  .card-set {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+  }
+  .variant-pill {
+    font-size: 11px;
+    font-weight: 500;
+    font-family: var(--mono);
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .v-standard   { background: rgba(122,127,148,0.15); color: #9aa0b8; }
+  .v-foil       { background: rgba(167,139,250,0.15); color: #c4b5fd; }
+  .v-hyperspace { background: var(--blue-dim);        color: var(--blue); }
+  .v-showcase   { background: rgba(251,191,36,0.12);  color: #fbbf24; }
+  .v-op         { background: var(--green-dim);       color: var(--green); }
+  .v-prize      { background: rgba(244,114,182,0.15); color: #f472b6; }
+
+  /* Right side of card row */
+  .card-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .divider {
+    width: 1px;
+    height: 36px;
+    background: var(--border);
+  }
+
+  /* Alert threshold */
+  .alert-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+  }
+  .alert-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .alert-input-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .alert-input-row span {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .alert-input {
+    width: 68px;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-mid);
+    background: var(--surface2);
+    color: var(--text);
+    text-align: right;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .alert-input:focus { border-color: var(--accent); }
+  .badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .badge-ok        { background: var(--green-dim); color: var(--green); }
+  .badge-triggered { background: var(--red-dim);   color: var(--red); }
+  .badge-nodata    { background: rgba(122,127,148,0.1); color: var(--text-muted); }
+
+  /* Price block */
+  .price-block { text-align: right; min-width: 72px; }
+  .price-current {
+    font-size: 20px;
+    font-weight: 500;
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .price-nodata {
+    font-size: 14px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+  }
+  .price-change {
+    font-size: 12px;
+    font-family: var(--mono);
+    margin-top: 2px;
+  }
+  .up   { color: var(--green); }
+  .down { color: var(--red); }
+  .flat { color: var(--text-dim); }
+
+  /* Remove button */
+  .remove-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dim);
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+  }
+  .remove-btn:hover { color: var(--red); background: var(--red-dim); }
+
+  /* Footer */
+  .footer {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    text-align: right;
+    margin-top: 1.25rem;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    border: 1px dashed var(--border-mid);
+    border-radius: var(--radius-lg);
+  }
+  .empty p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+
+  /* Error banner */
+  .error-banner {
+    background: var(--red-dim);
+    border: 1px solid rgba(255,107,107,0.3);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--red);
+    margin-bottom: 1.25rem;
+    font-family: var(--mono);
+    display: none;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    height: 68px;
+    position: relative;
+    overflow: hidden;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border-mid);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    width: 380px;
+    max-width: 100%;
+  }
+  .modal h2 {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 1.25rem;
+  }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 5px;
+  }
+  .field input, .field select {
+    width: 100%;
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-mid);
+    background: var(--surface2);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--surface2); }
+  .field-hint {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 1.25rem;
+  }
+  .btn-cancel {
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-mid);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .btn-cancel:hover { background: var(--surface2); }
+  .btn-save {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-save:hover { background: rgba(255,232,77,0.2); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .saving-msg {
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--text-muted);
+    align-self: center;
+    display: none;
+  }
+
+  @media (max-width: 560px) {
+    .card-row { grid-template-columns: 1fr; }
+    .card-right { justify-content: space-between; }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+    .stat-value { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <div class="header-title">Card Price Tracker</div>
+      <div class="header-subtitle">Star Wars: Unlimited</div>
+    </div>
+    <button class="add-btn" onclick="openModal()">+ Add card</button>
+  </div>
+
+  <div id="error-banner" class="error-banner"></div>
+
+  <div class="stats" id="stats">
+    <div class="stat"><div class="stat-label">Watching</div><div class="stat-value" id="stat-count">—</div></div>
+    <div class="stat"><div class="stat-label">Alerts</div><div class="stat-value" id="stat-alerts">—</div></div>
+    <div class="stat"><div class="stat-label">Drops</div><div class="stat-value" id="stat-drops">—</div></div>
+  </div>
+
+  <div class="cards-list" id="cards-list">
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+    <div class="skeleton"></div>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<!-- Add card modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <h2>Add card to watchlist</h2>
+    <div class="field">
+      <label>Base card name</label>
+      <input type="text" id="f-name" placeholder="e.g. Luke Skywalker" />
+    </div>
+    <div class="field">
+      <label>TCGPlayer listing name</label>
+      <input type="text" id="f-tcgname" placeholder="e.g. Luke Skywalker - Showcase Foil" />
+      <div class="field-hint">Paste the exact name as listed on TCGPlayer. Leave blank if same as above.</div>
+    </div>
+    <div class="field">
+      <label>Set</label>
+      <select id="f-set">
+        <option>Spark of Rebellion</option>
+        <option>Shadows of the Galaxy</option>
+        <option>Twilight of the Republic</option>
+        <option>Starships and Speeders</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Alert threshold ($)</label>
+      <input type="number" id="f-threshold" placeholder="e.g. 12.00" step="0.25" min="0" />
+    </div>
+    <div class="modal-actions">
+      <span class="saving-msg" id="saving-msg">Saving…</span>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="btn-save" onclick="addCard()">Add card</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase JS client (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────────────────────
+  // Replace these two values with your own from Supabase project settings.
+  const SUPABASE_URL = 'https://bgkxiizeujwcaurpujra.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJna3hpaXpldWp3Y2F1cnB1anJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NTkzNTgsImV4cCI6MjA4OTQzNTM1OH0.idkKWkeRY1GrTU-F9NqTUff5uaJMDBvoVLSOxYZh3Bo';
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let watchlist = [];   // current data from Supabase view
+
+  // ─── VARIANT PILL ─────────────────────────────────────────────────────────
+  function variantPill(tcgName, baseName) {
+    const suffix = tcgName.replace(baseName, '').replace(/^[\s\-]+/, '').trim();
+    if (!suffix) return `<span class="variant-pill v-standard">Standard</span>`;
+    const sl = suffix.toLowerCase();
+    let cls = 'v-foil';
+    if (sl.includes('hyperspace'))                  cls = 'v-hyperspace';
+    else if (sl.includes('showcase'))               cls = 'v-showcase';
+    else if (sl.includes('organized play') || sl.includes(' op ') || sl.endsWith(' op')) cls = 'v-op';
+    else if (sl.includes('prize'))                  cls = 'v-prize';
+    return `<span class="variant-pill ${cls}">${suffix}</span>`;
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
+  function renderStats() {
+    const total     = watchlist.length;
+    const triggered = watchlist.filter(c => c.alert_triggered).length;
+    const drops     = watchlist.filter(c => c._change < 0).length;
+    document.getElementById('stat-count').textContent  = total;
+    const aEl = document.getElementById('stat-alerts');
+    aEl.textContent = triggered;
+    aEl.className   = 'stat-value' + (triggered > 0 ? ' alert' : '');
+    document.getElementById('stat-drops').textContent  = drops;
+  }
+
+  function renderCards() {
+    const list = document.getElementById('cards-list');
+    if (!watchlist.length) {
+      list.innerHTML = `<div class="empty"><p>No cards on your watchlist yet.</p><button class="add-btn" onclick="openModal()">Add your first card</button></div>`;
+      return;
+    }
+    list.innerHTML = watchlist.map(c => {
+      const hasPrice = c.market_price !== null && c.market_price !== undefined;
+      const priceEl  = hasPrice
+        ? `<div class="price-current">$${Number(c.market_price).toFixed(2)}</div>
+           <div class="price-change ${c._changeClass}">${c._changeStr}</div>`
+        : `<div class="price-nodata">—</div>`;
+      const badge = !hasPrice
+        ? `<span class="badge badge-nodata">no data</span>`
+        : c.alert_triggered
+          ? `<span class="badge badge-triggered">&#9660; alert</span>`
+          : `<span class="badge badge-ok">&#10003; ok</span>`;
+      return `
+      <div class="card-row${c.alert_triggered ? ' triggered' : ''}">
+        <div class="card-info">
+          <div class="card-name">${escHtml(c.base_name)}</div>
+          <div class="card-meta">
+            <span class="card-set">${escHtml(c.set_name)}</span>
+            ${variantPill(c.tcg_name, c.base_name)}
+          </div>
+        </div>
+        <div class="card-right">
+          <div class="alert-block">
+            <span class="alert-label">Alert below</span>
+            <div class="alert-input-row">
+              <span>$</span>
+              <input class="alert-input" type="number" step="0.25" min="0"
+                value="${c.threshold !== null ? Number(c.threshold).toFixed(2) : ''}"
+                placeholder="—"
+                onchange="updateThreshold('${c.id}', this.value)" />
+            </div>
+            ${badge}
+          </div>
+          <div class="divider"></div>
+          <div class="price-block">${priceEl}</div>
+          <button class="remove-btn" onclick="removeCard('${c.id}')" title="Remove">&#10005;</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    const ts = watchlist[0]?.last_fetched;
+    document.getElementById('footer').textContent = ts
+      ? 'Last updated: ' + new Date(ts).toLocaleString('en-US', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })
+      : '';
+  }
+
+  function render() { renderStats(); renderCards(); }
+
+  // ─── FETCH DATA ───────────────────────────────────────────────────────────
+  async function loadWatchlist() {
+    const { data, error } = await sb
+      .from('watchlist_current')
+      .select('*')
+      .order('base_name');
+
+    if (error) { showError('Failed to load watchlist: ' + error.message); return; }
+
+    // Attach previous price for change display (requires price_history query)
+    // For simplicity in V1, we show change only if we can get the prior snapshot.
+    await attachPriceChanges(data);
+
+    watchlist = data;
+    render();
+  }
+
+  async function attachPriceChanges(cards) {
+    for (const card of cards) {
+      card._change = 0;
+      card._changeStr = '—';
+      card._changeClass = 'flat';
+
+      if (!card.market_price) continue;
+
+      // Get the second-most-recent price snapshot for this card
+      const { data } = await sb
+        .from('price_history')
+        .select('market_price')
+        .eq('watchlist_id', card.id)
+        .order('fetched_at', { ascending: false })
+        .range(1, 1);   // skip index 0 (current), get index 1 (previous)
+
+      if (data && data.length > 0 && data[0].market_price !== null) {
+        const diff = card.market_price - data[0].market_price;
+        card._change = diff;
+        if (Math.abs(diff) >= 0.005) {
+          const sign = diff > 0 ? '+' : '−';
+          card._changeStr  = sign + '$' + Math.abs(diff).toFixed(2);
+          card._changeClass = diff > 0 ? 'up' : 'down';
+        }
+      }
+    }
+  }
+
+  // ─── ADD CARD ─────────────────────────────────────────────────────────────
+  async function addCard() {
+    const name      = document.getElementById('f-name').value.trim();
+    const tcgName   = document.getElementById('f-tcgname').value.trim() || name;
+    const setName   = document.getElementById('f-set').value;
+    const threshold = document.getElementById('f-threshold').value;
+
+    if (!name) { document.getElementById('f-name').focus(); return; }
+
+    setSaving(true);
+
+    const { error } = await sb.from('watchlist').insert({
+      base_name:  name,
+      tcg_name:   tcgName,
+      set_name:   setName,
+      threshold:  threshold ? parseFloat(threshold) : null,
+      game:       'Star Wars: Unlimited',
+    });
+
+    setSaving(false);
+
+    if (error) { showError('Failed to add card: ' + error.message); return; }
+
+    closeModal();
+    await loadWatchlist();
+  }
+
+  // ─── UPDATE THRESHOLD ─────────────────────────────────────────────────────
+  async function updateThreshold(id, val) {
+    const threshold = val ? parseFloat(val) : null;
+    const { error } = await sb
+      .from('watchlist')
+      .update({ threshold })
+      .eq('id', id);
+    if (error) showError('Failed to update threshold: ' + error.message);
+    else await loadWatchlist();
+  }
+
+  // ─── REMOVE CARD ──────────────────────────────────────────────────────────
+  async function removeCard(id) {
+    const { error } = await sb
+      .from('watchlist')
+      .update({ active: false })
+      .eq('id', id);
+    if (error) showError('Failed to remove card: ' + error.message);
+    else await loadWatchlist();
+  }
+
+  // ─── MODAL ────────────────────────────────────────────────────────────────
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('f-name').focus();
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    ['f-name','f-tcgname','f-threshold'].forEach(id => document.getElementById(id).value = '');
+  }
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+  }
+  function setSaving(on) {
+    document.getElementById('saving-msg').style.display = on ? 'inline' : 'none';
+    document.getElementById('btn-save').disabled = on;
+  }
+
+  // ─── UTILS ────────────────────────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('error-banner');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────────────────────
+  loadWatchlist();
+</script>
+</body>
+</html>
